@@ -1,0 +1,2 @@
+# bluearchive_gatcha_simulater
+bluearchive_gatcha_simulater
