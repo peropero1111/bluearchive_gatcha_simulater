@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>가챠 A vs B — 몬테카를로 시뮬레이터</title>
+
+    <style>
+
+        :root{
+
+            --bg:#101018;
+
+            --panel:#1a1a26;
+
+            --panel2:#22222f;
+
+            --line:#32324a;
+
+            --text:#e8e6f0;
+
+            --dim:#9a97ad;
+
+            --gold:#f0c24b;      /* A가챠 */
+
+            --cyan:#5ad0e6;      /* B가챠 */
+
+            --win:#7ee08a;
+
+            --cross:#c792ea;     /* 타 배너 픽업 */
+
+            --star:#f0c24b;
+
+        }
+
+        *{box-sizing:border-box;margin:0;padding:0}
+
+        body{
+
+            background:var(--bg);
+
+            color:var(--text);
+
+            font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;
+
+            line-height:1.6;
+
+            padding:24px 16px 60px;
+
+        }
+
+        .wrap{max-width:960px;margin:0 auto}
+
+        header{margin-bottom:20px}
+
+        h1{font-size:1.6rem;letter-spacing:-.02em}
+
+        h1 .a{color:var(--gold)} h1 .b{color:var(--cyan)}
+
+        .sub{color:var(--dim);font-size:.9rem;margin-top:4px}
+
+
+        .rules{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}
+
+        @media(max-width:640px){.rules{grid-template-columns:1fr}}
+
+        .rule{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-size:.88rem}
+
+        .rule h3{font-size:1rem;margin-bottom:6px}
+
+        .rule.a h3{color:var(--gold)} .rule.b h3{color:var(--cyan)}
+
+        .rule ul{list-style:none}
+
+        .rule li::before{content:"★ ";color:var(--star);font-size:.75em}
+
+        .rule .ev{margin-top:8px;color:var(--dim);font-size:.82rem;border-top:1px dashed var(--line);padding-top:6px}
+
+
+        .controls{
+
+            background:var(--panel);border:1px solid var(--line);border-radius:12px;
+
+            padding:14px 16px;display:flex;flex-direction:column;gap:12px;margin-bottom:18px;
+
+        }
+
+        .crow{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+
+        .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+
+        .seg button{background:transparent;color:var(--dim);border:0;padding:8px 16px;font-size:.9rem;cursor:pointer;font-family:inherit}
+
+        .seg button.on{background:var(--panel2);color:var(--text);font-weight:700}
+
+        .btn{border:0;border-radius:8px;padding:9px 18px;font-size:.92rem;font-weight:700;cursor:pointer;font-family:inherit}
+
+        .btn.run1{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+
+        .btn.run1:hover{border-color:var(--dim)}
+
+        .btn.run10k{background:linear-gradient(135deg,var(--gold),#e09a2f);color:#241a05}
+
+        .btn.run10k:hover{filter:brightness(1.08)}
+
+        .btn:focus-visible,.seg button:focus-visible,.opts input:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+
+        .opts{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;font-size:.85rem;color:var(--dim);
+
+            border-top:1px dashed var(--line);padding-top:10px}
+
+        .opts label{display:flex;align-items:center;gap:6px;cursor:pointer}
+
+        .opts input[type=checkbox]{accent-color:var(--gold);width:15px;height:15px}
+
+        .opts input[type=number]{width:58px;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+
+            border-radius:6px;padding:3px 6px;font-family:inherit}
+
+        .opts .note{flex-basis:100%;font-size:.78rem;color:#6c6a82}
+
+
+        section{margin-bottom:26px}
+
+        section h2{font-size:1.05rem;margin-bottom:10px}
+
+        .hint{color:var(--dim);font-size:.85rem}
+
+
+        .single{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+        @media(max-width:640px){.single{grid-template-columns:1fr}}
+
+        .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+
+        .card.a{border-top:3px solid var(--gold)} .card.b{border-top:3px solid var(--cyan)}
+
+        .card .name{font-size:.85rem;color:var(--dim)}
+
+        .card .big{font-size:2rem;font-weight:800;letter-spacing:-.02em}
+
+        .card.a .big{color:var(--gold)} .card.b .big{color:var(--cyan)}
+
+        .card .detail{font-size:.84rem;color:var(--dim);margin-top:6px;white-space:pre-line}
+
+        .duel{margin-top:12px;padding:10px 14px;border-radius:10px;background:var(--panel2);font-size:.92rem;border:1px solid var(--line)}
+
+        .duel b.win{color:var(--win)}
+
+
+        /* 10뽑 단위 로그 뷰어 */
+
+        details.logbox{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}
+
+        details.logbox summary{cursor:pointer;font-size:.82rem;color:var(--dim);user-select:none}
+
+        details.logbox summary:hover{color:var(--text)}
+
+        details.logbox summary:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+
+        .loglegend{font-size:.75rem;color:var(--dim);margin:6px 0 4px}
+
+        .log{max-height:320px;overflow-y:auto;margin-top:4px;padding-right:6px}
+
+        .lbanner{font-size:.78rem;font-weight:700;color:var(--text);margin:8px 0 2px;border-left:3px solid var(--line);padding-left:8px}
+
+        .card.a .lbanner{border-color:var(--gold)} .card.b .lbanner{border-color:var(--cyan)}
+
+        .lrow{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:.95rem;letter-spacing:5px;white-space:nowrap;line-height:1.5}
+
+        .lrange{display:inline-block;min-width:66px;color:#55536b;font-size:.72rem;letter-spacing:0;font-family:inherit}
+
+        .lm{color:#4a4862} .lo{color:var(--gold);opacity:.6} .lp{color:var(--win)} .lt{color:var(--cross)}
+
+        .lspark{font-family:inherit;letter-spacing:0;font-size:.8rem;color:var(--gold);margin-top:2px}
+
+        .lskip{font-family:inherit;letter-spacing:0;font-size:.8rem;color:var(--cross)}
+
+
+        canvas{width:100%;height:280px;background:var(--panel);border:1px solid var(--line);border-radius:12px;display:block}
+
+        .legend{display:flex;gap:18px;font-size:.84rem;color:var(--dim);margin-top:8px}
+
+        .chip{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}
+
+
+        table{width:100%;border-collapse:collapse;font-size:.88rem;background:var(--panel);border-radius:12px;overflow:hidden}
+
+        th,td{padding:8px 12px;text-align:right;border-bottom:1px solid var(--line)}
+
+        th:first-child,td:first-child{text-align:left;color:var(--dim)}
+
+        thead th{background:var(--panel2)}
+
+        thead th.ca{color:var(--gold)} thead th.cb{color:var(--cyan)}
+
+        tbody tr:last-child td{border-bottom:0}
+
+        td.best{color:var(--win);font-weight:700}
+
+
+        .verdict{margin-top:14px;padding:14px 16px;border-radius:12px;
+
+            background:linear-gradient(135deg,rgba(240,194,75,.10),rgba(90,208,230,.10));
+
+            border:1px solid var(--line);font-size:.94rem}
+
+        .verdict b{color:var(--win)}
+
+        .empty{color:var(--dim);font-size:.88rem;padding:20px;text-align:center;background:var(--panel);border:1px dashed var(--line);border-radius:12px}
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="wrap">
+
+
+    <header>
+
+        <h1>가챠 <span class="a">A</span> vs <span class="b">B</span> — 어느 쪽이 이득인가?</h1>
+
+        <div class="sub">몬테카를로 시뮬레이션 · 10연 단위 진행 · 픽업 1개 / 별도 배너 픽업 2개 (성공 시 다음 배너로 이동) · 1회 & 10,000회 실행</div>
+
+    </header>
+
+
+    <div class="rules">
+
+        <div class="rule a">
+
+            <h3>A가챠 — 마일리지(천장 교환)형</h3>
+
+            <ul>
+
+                <li>1뽑당: 픽업 3성 0.7% / 픽뚫 3성 2.3% / 꽝 97%</li>
+
+                <li>1뽑 = 1포인트, 200포인트로 픽업 교환 (200뽑 천장)</li>
+
+                <li>10연 단위 진행 — 픽업이 나와도 그 10연은 끝까지 소모</li>
+
+            </ul>
+
+            <div class="ev">기본 옵션 기준 이론 기대 소모량(픽업 1개): <b>≈ 111.2뽑</b> · 천장 도달 ≈ 24.5%</div>
+
+        </div>
+
+        <div class="rule b">
+
+            <h3>B가챠 — 반천장(하드피티)형</h3>
+
+            <ul>
+
+                <li>1뽑당: 픽업 3성 0.7% / 픽뚫 3성 2.3% / 꽝 97% (A와 동일)</li>
+
+                <li>픽업 미획득 시 100뽑째 3성 확정, 픽업 확률 50% (반천장)</li>
+
+                <li>반천장 패배 후에도 미획득이면 200뽑째 픽업 확정</li>
+
+                <li>10연 단위 진행 — 픽업이 나와도 그 10연은 끝까지 소모</li>
+
+            </ul>
+
+            <div class="ev">기본 옵션 기준 이론 기대 소모량(픽업 1개): <b>≈ 92.9뽑</b> · 100뽑 전 자력 ≈ 50.1% · 천장 ≈ 12.4%</div>
+
+        </div>
+
+    </div>
+
+
+    <div class="controls">
+
+        <div class="crow">
+
+            <div class="seg" role="group" aria-label="목표 선택">
+
+                <button id="mode1" class="on">픽업 1개 목표</button>
+
+                <button id="mode2">픽업 2개 목표 (별도 배너)</button>
+
+            </div>
+
+            <button class="btn run1" id="btnSingle">1회 실행</button>
+
+            <button class="btn run10k" id="btn10k">10,000회 실행</button>
+
+            <span class="hint" id="status"></span>
+
+        </div>
+
+        <div class="opts">
+
+            <label><input type="checkbox" id="optCarryB"> B가챠 스택 이월</label>
+
+            <label><input type="checkbox" id="optCross"> 픽뚫 풀에 타 배너 픽업 포함</label>
+
+            <label>픽뚫 풀 크기 <input type="number" id="optPool" value="10" min="2" max="100">종</label>
+
+            <span class="note">※ 두 옵션 모두 「픽업 2개」 모드에서만 효과가 있습니다. A가챠 포인트는 이월 불가(배너마다 초기화). 타 배너 픽업이 픽뚫로 나올 확률 = 2.3% ÷ 풀 크기.</span>
+
+        </div>
+
+    </div>
+
+
+    <section>
+
+        <h2>1회 실행 결과</h2>
+
+        <div id="singleOut" class="empty">「1회 실행」을 누르면 한 명의 유저가 픽업을 얻을 때까지의 결과와 10뽑 단위 로그를 보여줍니다.</div>
+
+    </section>
+
+
+    <section>
+
+        <h2>10,000회 실행 — 필요 뽑기 수 분포</h2>
+
+        <div id="histWrap" class="empty">「10,000회 실행」을 누르면 두 가챠의 분포와 통계를 비교합니다.</div>
+
+        <canvas id="hist" width="1800" height="560" style="display:none" aria-label="필요 뽑기 수 히스토그램"></canvas>
+
+        <div class="legend" id="legend" style="display:none">
+
+            <span><span class="chip" style="background:var(--gold)"></span>A가챠</span>
+
+            <span><span class="chip" style="background:var(--cyan)"></span>B가챠</span>
+
+            <span class="hint">가로축: 필요 뽑기 수 · 세로축: 빈도(회)</span>
+
+        </div>
+
+        <div id="statsOut" style="margin-top:14px"></div>
+
+    </section>
+
+
+</div>
+
+
+<script>
+
+    "use strict";
+
+    const P_PICK = 0.007, P_OFF = 0.023;
+
+    const $ = id => document.getElementById(id);
+
+
+    let mode = 1;
+
+    $("mode1").onclick = () => setMode(1);
+
+    $("mode2").onclick = () => setMode(2);
+
+    function setMode(m){
+
+        mode = m;
+
+        $("mode1").classList.toggle("on", m===1);
+
+        $("mode2").classList.toggle("on", m===2);
+
+        $("status").textContent = "";
+
+    }
+
+    function getOpt(){
+
+        return {
+
+            carryB: $("optCarryB").checked,
+
+            cross:  $("optCross").checked,
+
+            pool:   Math.max(2, Math.min(100, +$("optPool").value || 10)),
+
+        };
+
+    }
+
+
+    // ---- 시뮬레이션 코어 (10연 단위, 배너 순차 진행) ----
+
+    // 로그 기호: '.'=꽝, 'O'=픽뚫 3성, 'P'=이 배너의 픽업, 'T'=픽뚫로 등장한 타 배너 픽업, 'S'=포인트 교환 표시
+
+    function runCampaign(type, n, opt, withLog){
+
+        const got = new Array(n).fill(false);
+
+        let points = 0, stack = 0;
+
+        const banners = [];
+
+        let totPulls=0, totOff=0, sparks=0, halfWin=0, ceilCnt=0, naturalCnt=0, crossCnt=0;
+
+
+        for(let k=0; k<n; k++){
+
+            if(got[k]){ banners.push({skipped:true, pulls:0}); continue; }
+
+            if(type==='A'){ points = 0; }                 // A는 이월 불가 — 배너마다 초기화
+
+            else          { if(!opt.carryB) stack = 0; }  // B는 옵션에 따라 스택 이월
+
+
+            const log = withLog ? [] : null;
+
+            const startCarry = type==='A' ? 0 : stack;
+
+            let bPulls=0, bOff=0, gotAt=0, half=null, sparked=false, how='';
+
+
+            const offRoll = () => { // 픽뚫 3성 — 옵션에 따라 타 배너 픽업일 수 있음
+
+                if(opt.cross && n>1){
+
+                    for(let m=0; m<n; m++){
+
+                        if(m!==k && !got[m] && Math.random() < 1/opt.pool){
+
+                            got[m]=true; crossCnt++; return 'T';
+
+                        }
+
+                    }
+
+                }
+
+                bOff++; totOff++; return 'O';
+
+            };
+
+
+            while(true){
+
+                for(let j=0; j<10; j++){
+
+                    bPulls++; totPulls++;
+
+                    let sym;
+
+                    if(type==='A'){
+
+                        points++;
+
+                        const r = Math.random();
+
+                        if(r < P_PICK){ sym='P'; if(!got[k]){ got[k]=true; gotAt=bPulls; how='natural'; } }
+
+                        else if(r < P_PICK+P_OFF){ sym = offRoll(); }
+
+                        else sym='.';
+
+                        if(!got[k] && points >= 200){ // 200포인트 교환
+
+                            got[k]=true; sparked=true; sparks++; gotAt=bPulls; points-=200; how='spark';
+
+                        }
+
+                    } else {
+
+                        stack++;
+
+                        if(!got[k] && stack===100){          // 반천장: 확정 3성 50:50
+
+                            if(Math.random() < 0.5){ sym='P'; got[k]=true; gotAt=bPulls; half='win'; halfWin++; how='half'; stack=0; }
+
+                            else { sym = offRoll(); half='lose'; }
+
+                        } else if(!got[k] && stack>=200){    // 천장: 픽업 확정
+
+                            sym='P'; got[k]=true; gotAt=bPulls; ceilCnt++; how='ceil'; stack=0;
+
+                        } else {
+
+                            const r = Math.random();
+
+                            if(r < P_PICK){ sym='P'; if(!got[k]){ got[k]=true; gotAt=bPulls; how='natural'; naturalCnt++; stack=0; } }
+
+                            else if(r < P_PICK+P_OFF){ sym = offRoll(); }
+
+                            else sym='.';
+
+                        }
+
+                    }
+
+                    if(log) log.push(sym);
+
+                }
+
+                if(got[k]) break;
+
+                if(bPulls > 4000) break; // 안전장치 (규칙상 도달 불가)
+
+            }
+
+            if(sparked && log) log.push('S');
+
+            banners.push({skipped:false, pulls:bPulls, off:bOff, gotAt, half, sparked, how, startCarry, log});
+
+        }
+
+        return {pulls:totPulls, off:totOff, sparks, halfWin, ceilCnt, natural:naturalCnt, cross:crossCnt, banners};
+
+    }
+
+
+    // ---- 1회 실행 ----
+
+    function logHTML(banners, multi){
+
+        return banners.map((bn, bi) => {
+
+            const head = multi
+
+                ? `<div class="lbanner">배너 ${bi+1} · ${bn.skipped ? '스킵' : bn.pulls+'뽑'}${
+
+                    bn.startCarry ? ` (이월 ${bn.startCarry})` : ''}</div>` : '';
+
+            if(bn.skipped) return head + `<div class="lrow lskip">✦ 앞 배너에서 픽뚫로 이미 획득 — 0뽑</div>`;
+
+            const L = bn.log, spark = L[L.length-1]==='S';
+
+            const pulls = spark ? L.slice(0,-1) : L;
+
+            const rows = [];
+
+            for(let s=0; s<pulls.length; s+=10){
+
+                const chunk = pulls.slice(s, s+10).map(c =>
+
+                    c==='P' ? '<span class="lp">★</span>' :
+
+                        c==='T' ? '<span class="lt">✦</span>' :
+
+                            c==='O' ? '<span class="lo">☆</span>' : '<span class="lm">·</span>'
+
+                ).join('');
+
+                rows.push(`<div class="lrow"><span class="lrange">${s+1}–${Math.min(s+10,pulls.length)}</span>${chunk}</div>`);
+
+            }
+
+            if(spark) rows.push(`<div class="lrow lspark">└ 200포인트 → 픽업 교환 ★</div>`);
+
+            return head + rows.join('');
+
+        }).join('');
+
+    }
+
+    function logBox(banners, multi){
+
+        return `<details class="logbox"><summary>10뽑 단위 로그 보기</summary>
+
+    <div class="loglegend">· 꽝   <span class="lo">☆</span> 픽뚫 3성   <span class="lp">★</span> 픽업   <span class="lt">✦</span> 타 배너 픽업(픽뚫로 등장)</div>
+
+    <div class="log">${logHTML(banners, multi)}</div></details>`;
+
+    }
+
+    function howText(bn){
+
+        switch(bn.how){
+
+            case 'natural': return `${bn.gotAt}뽑째 자력 픽업`;
+
+            case 'half':    return `반천장 50:50 승리 (${bn.gotAt}뽑째)`;
+
+            case 'ceil':    return `천장 확정 (${bn.gotAt}뽑째)`;
+
+            case 'spark':   return `200포인트 교환 (${bn.gotAt}뽑째)`;
+
+            default:        return '';
+
+        }
+
+    }
+
+    $("btnSingle").onclick = () => {
+
+        const opt = getOpt();
+
+        const a = runCampaign('A', mode, opt, true), b = runCampaign('B', mode, opt, true);
+
+        const crossTxt = c => c ? ` · 타 배너 픽업 픽뚫 등장 ${c}회` : '';
+
+        const aDetail = mode===1
+
+            ? `${howText(a.banners[0])}\n덤으로 픽뚫 3성 ${a.off}개`
+
+            : `${a.banners.map((bn,i)=>`배너${i+1}: ${bn.skipped?'스킵(픽뚫로 선획득)':howText(bn)}`).join('\n')}\n픽뚫 3성 ${a.off}개${crossTxt(a.cross)}`;
+
+        const bOne = b.banners[0];
+
+        const bDetail = mode===1
+
+            ? `${bOne.half==='lose' && bOne.how!=='half' ? '반천장 패배(픽뚫) 후 ' : ''}${howText(bOne)}\n덤으로 픽뚫 3성 ${b.off}개`
+
+            : `${b.banners.map((bn,i)=>`배너${i+1}: ${bn.skipped?'스킵(픽뚫로 선획득)':howText(bn)}`).join('\n')}\n픽뚫 3성 ${b.off}개${crossTxt(b.cross)}`;
+
+        const diff = a.pulls - b.pulls;
+
+        const duel = diff===0
+
+            ? "이번 판은 무승부 — 두 가챠의 소모량이 같습니다."
+
+            : diff<0
+
+                ? `이번 판은 <b class="win">A가챠 승리</b> — B보다 ${-diff}뽑 아꼈습니다.`
+
+                : `이번 판은 <b class="win">B가챠 승리</b> — A보다 ${diff}뽑 아꼈습니다.`;
+
+        $("singleOut").className = "";
+
+        $("singleOut").innerHTML = `
+
+    <div class="single">
+
+      <div class="card a">
+
+        <div class="name">A가챠 · 픽업 ${mode}개 획득까지</div>
+
+        <div class="big">${a.pulls}뽑</div>
+
+        <div class="detail">${aDetail}</div>
+
+        ${logBox(a.banners, mode>1)}
+
+      </div>
+
+      <div class="card b">
+
+        <div class="name">B가챠 · 픽업 ${mode}개 획득까지</div>
+
+        <div class="big">${b.pulls}뽑</div>
+
+        <div class="detail">${bDetail}</div>
+
+        ${logBox(b.banners, mode>1)}
+
+      </div>
+
+    </div>
+
+    <div class="duel">${duel}</div>`;
+
+    };
+
+
+    // ---- 10,000회 실행 ----
+
+    const N = 10000;
+
+    $("btn10k").onclick = () => {
+
+        const opt = getOpt();
+
+        const t0 = performance.now();
+
+        const A = new Array(N), B = new Array(N);
+
+        const ex = {aSparks:0, aOff:0, aCross:0, bOff:0, bHalfWin:0, bNatural:0, bCeil:0, bCross:0, aWinCnt:0, tie:0};
+
+        for(let i=0;i<N;i++){
+
+            const ra = runCampaign('A', mode, opt), rb = runCampaign('B', mode, opt);
+
+            A[i]=ra.pulls; B[i]=rb.pulls;
+
+            ex.aSparks+=ra.sparks; ex.aOff+=ra.off; ex.aCross+=ra.cross;
+
+            ex.bOff+=rb.off; ex.bHalfWin+=rb.halfWin; ex.bNatural+=rb.natural; ex.bCeil+=rb.ceilCnt; ex.bCross+=rb.cross;
+
+            if(ra.pulls<rb.pulls) ex.aWinCnt++; else if(ra.pulls===rb.pulls) ex.tie++;
+
+        }
+
+        drawHist(A,B);
+
+        renderStats(A,B,ex,opt);
+
+        $("status").textContent = `10,000회 완료 (${(performance.now()-t0).toFixed(0)}ms)`;
+
+    };
+
+
+    function stats(arr){
+
+        const s=[...arr].sort((x,y)=>x-y), n=s.length;
+
+        const mean=s.reduce((p,c)=>p+c,0)/n;
+
+        const sd=Math.sqrt(s.reduce((p,c)=>p+(c-mean)**2,0)/n);
+
+        const q=p=>s[Math.min(n-1,Math.floor(p*n))];
+
+        return {mean,sd,med:q(.5),p25:q(.25),p75:q(.75),p90:q(.9),min:s[0],max:s[n-1]};
+
+    }
+
+
+    function renderStats(A,B,ex,opt){
+
+        const sa=stats(A), sb=stats(B);
+
+        const f=x=>x.toFixed(1);
+
+        const row=(name,va,vb,lowerBetter=true)=>{
+
+            const aBest = lowerBetter ? va<vb : va>vb;
+
+            const eq = va===vb;
+
+            return `<tr><td>${name}</td>
+
+      <td class="${!eq&&aBest?'best':''}">${typeof va==='number'?f(va):va}</td>
+
+      <td class="${!eq&&!aBest?'best':''}">${typeof vb==='number'?f(vb):vb}</td></tr>`;
+
+        };
+
+        const aWinPct=(ex.aWinCnt/N*100).toFixed(1), tiePct=(ex.tie/N*100).toFixed(1),
+
+            bWinPct=(100-ex.aWinCnt/N*100-ex.tie/N*100).toFixed(1);
+
+        const meanDiff = sb.mean - sa.mean;
+
+        const better = meanDiff>0 ? "A가챠" : "B가챠";
+
+        const crossLine = (mode>1 && opt.cross)
+
+            ? `<br><span class="hint">타 배너 픽업이 픽뚫로 등장해 배너를 통째로 스킵: A ${(ex.aCross/N*100).toFixed(1)}% · B ${(ex.bCross/N*100).toFixed(1)}% (풀 ${opt.pool}종 기준)</span>` : '';
+
+        $("statsOut").innerHTML = `
+
+    <table>
+
+      <thead><tr><th>지표 (필요 뽑기 수)</th><th class="ca">A가챠</th><th class="cb">B가챠</th></tr></thead>
+
+      <tbody>
+
+        ${row("평균", sa.mean, sb.mean)}
+
+        ${row("중앙값", sa.med, sb.med)}
+
+        ${row("표준편차", sa.sd, sb.sd)}
+
+        ${row("상위 25% (운 좋음)", sa.p25, sb.p25)}
+
+        ${row("하위 25% (운 나쁨)", sa.p75, sb.p75)}
+
+        ${row("하위 10% (최악권)", sa.p90, sb.p90)}
+
+        ${row("최소 / 최대", `${sa.min} / ${sa.max}`, `${sb.min} / ${sb.max}`, sa.max<sb.max)}
+
+      </tbody>
+
+    </table>
+
+    <div class="verdict">
+
+      <b>${better}가 평균적으로 유리</b> — 같은 목표 달성에 평균 <b>${Math.abs(meanDiff).toFixed(1)}뽑</b> 덜 듭니다.
+
+      맞대결 시뮬레이션에서는 A 승 ${aWinPct}% · 무승부 ${tiePct}% · B 승 ${bWinPct}%.<br>
+
+      <span class="hint">A가챠: 천장 교환 사용률 ${(ex.aSparks/(N*mode)*100).toFixed(1)}% · 픽뚫 3성 평균 ${(ex.aOff/N).toFixed(2)}개
+
+      — B가챠: 자력 획득 ${(ex.bNatural/(N*mode)*100).toFixed(1)}% · 반천장 승리 ${(ex.bHalfWin/(N*mode)*100).toFixed(1)}% · 천장 ${(ex.bCeil/(N*mode)*100).toFixed(1)}% · 픽뚫 3성 평균 ${(ex.bOff/N).toFixed(2)}개</span>
+
+      ${crossLine}
+
+    </div>`;
+
+    }
+
+
+    // ---- 히스토그램 ----
+
+    function drawHist(A,B){
+
+        const cv=$("hist"), ctx=cv.getContext("2d");
+
+        cv.style.display="block"; $("legend").style.display="flex"; $("histWrap").style.display="none";
+
+        const W=cv.width, H=cv.height, padL=90, padR=30, padT=30, padB=70;
+
+        ctx.clearRect(0,0,W,H);
+
+
+        const maxX = mode===1 ? 200 : 400, bin = 10;
+
+        const nb = Math.ceil(maxX/bin);
+
+        const ha=new Array(nb).fill(0), hb=new Array(nb).fill(0);
+
+        for(const v of A) ha[Math.max(0,Math.min(nb-1,Math.floor((v-1)/bin)))]++;
+
+        for(const v of B) hb[Math.max(0,Math.min(nb-1,Math.floor((v-1)/bin)))]++;
+
+        const maxY = Math.max(...ha, ...hb);
+
+
+        const x = i => padL + (W-padL-padR) * i/nb;
+
+        const y = v => H-padB - (H-padT-padB) * v/maxY;
+
+        const bw = (W-padL-padR)/nb;
+
+
+        ctx.strokeStyle="#32324a"; ctx.fillStyle="#9a97ad";
+
+        ctx.font="22px sans-serif"; ctx.textAlign="right"; ctx.lineWidth=1;
+
+        for(let g=0; g<=4; g++){
+
+            const v=maxY*g/4, yy=y(v);
+
+            ctx.beginPath(); ctx.moveTo(padL,yy); ctx.lineTo(W-padR,yy); ctx.stroke();
+
+            ctx.fillText(Math.round(v).toLocaleString(), padL-10, yy+7);
+
+        }
+
+        ctx.textAlign="center";
+
+        const step = mode===1?50:100;
+
+        for(let vx=0; vx<=maxX; vx+=step){
+
+            ctx.fillText(vx+"뽑", x(vx/bin), H-padB+34);
+
+        }
+
+
+        const bar=(hist,fill,stroke)=>{
+
+            ctx.fillStyle=fill; ctx.strokeStyle=stroke; ctx.lineWidth=2;
+
+            for(let i=0;i<nb;i++){
+
+                if(!hist[i]) continue;
+
+                const yy=y(hist[i]);
+
+                ctx.fillRect(x(i)+1, yy, bw-2, H-padB-yy);
+
+                ctx.strokeRect(x(i)+1, yy, bw-2, H-padB-yy);
+
+            }
+
+        };
+
+        bar(ha,"rgba(240,194,75,.35)","rgba(240,194,75,.9)");
+
+        bar(hb,"rgba(90,208,230,.30)","rgba(90,208,230,.9)");
+
+
+        const line=(arr,color,label,offY)=>{
+
+            const m=arr.reduce((p,c)=>p+c,0)/arr.length;
+
+            const xx=x(m/bin);
+
+            ctx.strokeStyle=color; ctx.setLineDash([8,6]); ctx.lineWidth=3;
+
+            ctx.beginPath(); ctx.moveTo(xx,padT); ctx.lineTo(xx,H-padB); ctx.stroke();
+
+            ctx.setLineDash([]); ctx.fillStyle=color; ctx.textAlign="left";
+
+            ctx.fillText(`${label} 평균 ${m.toFixed(1)}`, xx+8, padT+offY);
+
+        };
+
+        line(A,"#f0c24b","A",24);
+
+        line(B,"#5ad0e6","B",56);
+
+    }
+
+</script>
+
+</body>
+
+</html>
